@@ -1,22 +1,22 @@
-// sw.js - Service Worker para GordisNailsbySandra
+// sw.js - Service Worker para BennetSalón
 
-const CACHE_NAME = 'gordis-nails-v1';
+const CACHE_NAME = 'bennetsalon-v1';
 const urlsToCache = [
-  '/gordis-nails/',
-  '/gordis-nails/index.html',
-  '/gordis-nails/admin.html',
-  '/gordis-nails/admin-login.html',
-  '/gordis-nails/setup-wizard.html',
-  '/gordis-nails/editar-negocio.html',
-  '/gordis-nails/manifest.json',
-  '/gordis-nails/icons/icon-72x72.png',
-  '/gordis-nails/icons/icon-96x96.png',
-  '/gordis-nails/icons/icon-128x128.png',
-  '/gordis-nails/icons/icon-144x144.png',
-  '/gordis-nails/icons/icon-152x152.png',
-  '/gordis-nails/icons/icon-192x192.png',
-  '/gordis-nails/icons/icon-384x384.png',
-  '/gordis-nails/icons/icon-512x512.png'
+  '/bennet_salon/',
+  '/bennet_salon/index.html',
+  '/bennet_salon/admin.html',
+  '/bennet_salon/admin-login.html',
+  '/bennet_salon/setup-wizard.html',
+  '/bennet_salon/editar-negocio.html',
+  '/bennet_salon/manifest.json',
+  '/bennet_salon/icons/icon-72x72.png',
+  '/bennet_salon/icons/icon-96x96.png',
+  '/bennet_salon/icons/icon-128x128.png',
+  '/bennet_salon/icons/icon-144x144.png',
+  '/bennet_salon/icons/icon-152x152.png',
+  '/bennet_salon/icons/icon-192x192.png',
+  '/bennet_salon/icons/icon-384x384.png',
+  '/bennet_salon/icons/icon-512x512.png'
 ];
 
 // ============================================
@@ -65,10 +65,8 @@ self.addEventListener('activate', event => {
 // ESTRATEGIA DE CACHÉ
 // ============================================
 self.addEventListener('fetch', event => {
-  // Ignorar peticiones que no sean HTTP
   if (!event.request.url.startsWith('http')) return;
   
-  // ⚡ NO INTERCEPTAR WHATSAPP (ESENCIAL PARA iOS)
   if (event.request.url.includes('wa.me') || 
       event.request.url.includes('api.whatsapp.com') ||
       event.request.url.includes('whatsapp.com')) {
@@ -76,7 +74,6 @@ self.addEventListener('fetch', event => {
     return;
   }
   
-  // Ignorar otras APIs externas
   if (event.request.url.includes('supabase.co')) return;
   if (event.request.url.includes('ntfy.sh')) return;
   if (event.request.url.includes('unsplash.com')) return;
@@ -86,11 +83,9 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Estrategia: Network First, fallback a cache
   event.respondWith(
     fetch(event.request)
       .then(networkResponse => {
-        // Si la respuesta es válida, guardar en cache
         if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
@@ -100,15 +95,13 @@ self.addEventListener('fetch', event => {
         return networkResponse;
       })
       .catch(() => {
-        // Si falla la red, buscar en cache
         return caches.match(event.request).then(cachedResponse => {
           if (cachedResponse) {
             console.log('📦 Sirviendo desde cache:', event.request.url);
             return cachedResponse;
           }
-          // Si no hay cache y es imagen, devolver icon por defecto
           if (event.request.url.match(/\.(jpg|jpeg|png|gif|svg|webp)$/)) {
-            return caches.match('/gordis-nails/icons/icon-192x192.png');
+            return caches.match('/bennet_salon/icons/icon-192x192.png');
           }
           return new Response('Error de red', { status: 408 });
         });
@@ -138,6 +131,6 @@ self.addEventListener('message', event => {
   }
 });
 
-console.log('✅ Service Worker configurado para GordisNailsbySandra');
+console.log('✅ Service Worker configurado para BennetSalón');
 console.log('📦 Cache:', CACHE_NAME);
 console.log('📄 Archivos a cachear:', urlsToCache.length);

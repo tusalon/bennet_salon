@@ -2,19 +2,19 @@
   "name": "BennetSalón",
   "short_name": "Bennet",
   "description": "Manicura y belleza - Tu espacio de cuidado personal",
-  "start_url": "/bennetsalon/",
-  "scope": "/bennetsalon/",
+  "start_url": "/bennet_salon/",
+  "scope": "/bennet_salon/",
   "display": "standalone",
   "background_color": "#ec4899",
   "theme_color": "#ec4899",
   "icons": [
     {
-      "src": "/bennetsalon/icons/icon-192x192.png",
+      "src": "/bennet_salon/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/bennetsalon/icons/icon-512x512.png",
+      "src": "/bennet_salon/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
