@@ -1,7 +1,9 @@
-// utils/whatsapp-helper.js - VERSIÓN DINÁMICA (CORREGIDA)
-// + NUEVA FUNCIÓN enviarMensajePago PARA ANTICIPOS PERSONALIZADOS
+// utils/whatsapp-helper.js - VERSIÓN GENÉRICA COMPLETA
+// CON FORMATO EXACTO DE MENSAJE
+// + Función unificada para confirmación de reserva
+// + Servicio incluido en notificaciones push
 
-console.log('📱 whatsapp-helper.js - VERSIÓN DINÁMICA');
+console.log('📱 whatsapp-helper.js - VERSIÓN GENÉRICA');
 
 // ============================================
 // FUNCIÓN PARA OBTENER CONFIGURACIÓN DEL NEGOCIO
@@ -11,14 +13,14 @@ async function getConfigNegocio() {
         const config = await window.cargarConfiguracionNegocio();
         return {
             nombre: config?.nombre || 'Mi Negocio',
-            telefono: config?.telefono || '54646800',
+            telefono: config?.telefono || '00000000',
             ntfyTopic: config?.ntfy_topic || 'notificaciones'
         };
     } catch (error) {
         console.error('Error obteniendo configuración:', error);
         return {
             nombre: 'Mi Negocio',
-            telefono: '54646800',
+            telefono: '00000000',
             ntfyTopic: 'notificaciones'
         };
     }
@@ -34,7 +36,7 @@ window.esIOS = function() {
 };
 
 // ============================================
-// FUNCIÓN UNIVERSAL WHATSAPP
+// FUNCIÓN UNIVERSAL WHATSAPP (CORREGIDA - USA api.whatsapp.com Y location.href)
 // ============================================
 window.enviarWhatsApp = function(telefono, mensaje) {
     try {
@@ -47,18 +49,12 @@ window.enviarWhatsApp = function(telefono, mensaje) {
         }
         
         const mensajeCodificado = encodeURIComponent(mensaje);
-        const url = `https://wa.me/${numeroCompleto}?text=${mensajeCodificado}`;
+        
+        const url = `https://api.whatsapp.com/send?phone=${numeroCompleto}&text=${mensajeCodificado}`;
         
         console.log('🔗 Abriendo WhatsApp:', url);
         
-        if (window.esIOS()) {
-            window.location.href = url;
-        } else {
-            const nuevaVentana = window.open(url, '_blank');
-            if (!nuevaVentana || nuevaVentana.closed || typeof nuevaVentana.closed === 'undefined') {
-                window.location.href = url;
-            }
-        }
+        window.location.href = url;
         return true;
     } catch (error) {
         console.error('❌ Error en enviarWhatsApp:', error);
@@ -102,7 +98,7 @@ window.enviarNotificacionPush = async function(titulo, mensaje, etiquetas = 'bel
 };
 
 // ============================================
-// 🆕 NUEVA FUNCIÓN: ENVIAR MENSAJE DE PAGO PERSONALIZADO
+// FUNCIÓN: ENVIAR MENSAJE DE PAGO PERSONALIZADO (AL CLIENTE Y DUEÑA)
 // ============================================
 window.enviarMensajePago = async function(booking, configNegocio) {
     try {
@@ -113,12 +109,10 @@ window.enviarMensajePago = async function(booking, configNegocio) {
 
         console.log('💰 Enviando mensaje de pago personalizado...');
 
-        // Si no se pasó la config, la cargamos
         if (!configNegocio) {
             configNegocio = await window.cargarConfiguracionNegocio();
         }
 
-        // Si no requiere anticipo, no hacemos nada
         if (!configNegocio?.requiere_anticipo) {
             console.log('ℹ️ El negocio no requiere anticipo, no se envía mensaje de pago');
             return false;
@@ -129,8 +123,6 @@ window.enviarMensajePago = async function(booking, configNegocio) {
         if (configNegocio.tipo_anticipo === 'fijo') {
             montoAnticipo = configNegocio.valor_anticipo || 0;
         } else {
-            // Porcentaje: necesitamos el precio del servicio
-            // Buscar el servicio en la lista global
             let precioServicio = 0;
             if (window.salonServicios) {
                 const servicios = await window.salonServicios.getAll(true);
@@ -143,7 +135,6 @@ window.enviarMensajePago = async function(booking, configNegocio) {
             montoAnticipo = Math.round(precioServicio * porcentaje);
         }
 
-        // Formatear fecha y hora
         const fechaConDia = window.formatFechaCompleta ? 
             window.formatFechaCompleta(booking.fecha) : 
             booking.fecha;
@@ -152,57 +143,35 @@ window.enviarMensajePago = async function(booking, configNegocio) {
             window.formatTo12Hour(booking.hora_inicio) : 
             booking.hora_inicio;
 
-        // Obtener profesional
         const profesional = booking.profesional_nombre || booking.trabajador_nombre || 'No asignada';
 
-        // Preparar variables para reemplazar en el mensaje
-        const variables = {
-            '{monto_anticipo}': `$${montoAnticipo}`,
-            '{servicio}': booking.servicio,
-            '{fecha}': fechaConDia,
-            '{hora}': horaFormateada,
-            '{profesional}': profesional,
-            '{cbu}': configNegocio.cbu || '[CBU no configurado]',
-            '{alias}': configNegocio.alias || '[Alias no configurado]',
-            '{titular}': configNegocio.titular || '[Titular no configurado]',
-            '{banco}': configNegocio.banco || '[Banco no configurado]',
-            '{tiempo_vencimiento}': configNegocio.tiempo_vencimiento || 2
-        };
-
-        // Usar mensaje personalizado o uno por defecto
-        let mensajeBase = configNegocio.mensaje_pago || 
-`💅 *${configNegocio.nombre || 'Mi Salón'}*
+        const mensajeFinal = 
+`💅 *${configNegocio.nombre || 'Mi Salón'} - Confirmación de Turno*
 
 ✅ *SOLICITUD DE TURNO REGISTRADA*
 
-📅 *Fecha:* {fecha}
-⏰ *Hora:* {hora}
-💈 *Servicio:* {servicio}
-👩‍🎨 *Profesional:* {profesional}
+📅 *Fecha:* ${fechaConDia}
+⏰ *Hora:* ${horaFormateada}
+💅 *Servicio:* ${booking.servicio}
+👩‍🎨 *Profesional:* ${profesional}
 
-💰 *Para confirmar tu turno*, realizá el pago del anticipo de *{monto_anticipo}* a:
+💰 *Para confirmar tu turno*, envía el *anticipo de ${montoAnticipo} CUP* por:
 
-🏦 *Banco:* {banco}
-🔢 *CBU:* {cbu}
-🏷️ *Alias:* {alias}
-👤 *Titular:* {titular}
+🏦 *Transferencia bancaria:* 
+   Tárjeta a transferir : ${configNegocio.cbu || 'XXXX XXXX XXXX XXXX'}
+   Alias: ${configNegocio.alias || 'alias.no.configurado'}
+
+📱 *Enviar comprobante a este WhatsApp:* 
+   +53 ${configNegocio.telefono || '00000000'}
 
 ⏳ *Importante:* 
-Tenés {tiempo_vencimiento} horas para realizar el pago.
-Si no se confirma en ese tiempo, el turno se cancelará automáticamente.
+El turno se cancelará automáticamente si no se confirma el pago dentro de las ${configNegocio.tiempo_vencimiento || 2} horas.
 
 ¡Gracias por elegirnos! 💖`;
 
-        // Reemplazar todas las variables
-        let mensajeFinal = mensajeBase;
-        for (const [key, value] of Object.entries(variables)) {
-            mensajeFinal = mensajeFinal.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
-        }
-
-        // Enviar WhatsApp al cliente
         window.enviarWhatsApp(booking.cliente_whatsapp, mensajeFinal);
         
-        console.log('✅ Mensaje de pago enviado al cliente');
+        console.log('✅ Mensaje de pago enviado al CLIENTE');
         return true;
 
     } catch (error) {
@@ -212,7 +181,104 @@ Si no se confirma en ese tiempo, el turno se cancelará automáticamente.
 };
 
 // ============================================
-// NOTIFICACIÓN DE NUEVA RESERVA (CONFIRMADA)
+// 🆕 FUNCIÓN: ENVIAR CONFIRMACIÓN DE RESERVA (SIN ANTICIPO)
+// ============================================
+window.enviarConfirmacionReserva = async function(booking, configNegocio) {
+    try {
+        if (!booking) {
+            console.error('❌ No hay datos de reserva');
+            return false;
+        }
+
+        console.log('📱 Enviando confirmación de reserva al cliente (sin anticipo)...');
+
+        if (!configNegocio) {
+            configNegocio = await window.cargarConfiguracionNegocio();
+        }
+
+        const fechaConDia = window.formatFechaCompleta ? 
+            window.formatFechaCompleta(booking.fecha) : 
+            booking.fecha;
+        
+        const horaFormateada = window.formatTo12Hour ? 
+            window.formatTo12Hour(booking.hora_inicio) : 
+            booking.hora_inicio;
+
+        const mensajeConfirmacion = 
+`✅ *${configNegocio?.nombre || 'Mi Salón'} - Turno Confirmado*
+
+Hola *${booking.cliente_nombre}*, tu turno ha sido agendado.
+
+📅 *Fecha:* ${fechaConDia}
+⏰ *Hora:* ${horaFormateada}
+💅 *Servicio:*${booking.servicio}
+👩‍🎨 *Profesional:* ${booking.profesional_nombre || booking.trabajador_nombre}
+
+¡Te esperamos! ❤️`;
+
+        window.enviarWhatsApp(booking.cliente_whatsapp, mensajeConfirmacion);
+        return true;
+
+    } catch (error) {
+        console.error('Error en enviarConfirmacionReserva:', error);
+        return false;
+    }
+};
+
+// ============================================
+// FUNCIÓN: ENVIAR CONFIRMACIÓN DE PAGO (CUANDO EL ADMIN CONFIRMA)
+// ============================================
+window.enviarConfirmacionPago = async function(booking, configNegocio) {
+    try {
+        if (!booking) {
+            console.error('❌ No hay datos de reserva');
+            return false;
+        }
+
+        console.log('🎉 Enviando confirmación de pago al cliente...');
+
+        if (!configNegocio) {
+            configNegocio = await window.cargarConfiguracionNegocio();
+        }
+
+        const fechaConDia = window.formatFechaCompleta ? 
+            window.formatFechaCompleta(booking.fecha) : 
+            booking.fecha;
+        
+        const horaFormateada = window.formatTo12Hour ? 
+            window.formatTo12Hour(booking.hora_inicio) : 
+            booking.hora_inicio;
+
+        const nombreNegocio = configNegocio?.nombre || 'Mi Salón';
+
+        const mensajeConfirmacion = 
+`💅 *${nombreNegocio} - Turno Confirmado* 🎉
+
+Hola *${booking.cliente_nombre}*, ¡tu turno ha sido CONFIRMADO!
+
+📅 *Fecha:* ${fechaConDia}
+⏰ *Hora:* ${horaFormateada}
+💅 *Servicio:* ${booking.servicio}
+👩‍🎨 *Profesional:* ${booking.profesional_nombre || booking.trabajador_nombre}
+
+✅ *Pago recibido correctamente*
+
+Te esperamos ❤️
+Cualquier cambio, podés cancelarlo desde la app con hasta 1 hora de anticipación.`;
+
+        window.enviarWhatsApp(booking.cliente_whatsapp, mensajeConfirmacion);
+        
+        console.log('✅ Mensaje de confirmación de pago enviado');
+        return true;
+
+    } catch (error) {
+        console.error('Error en enviarConfirmacionPago:', error);
+        return false;
+    }
+};
+
+// ============================================
+// NOTIFICACIÓN DE NUEVA RESERVA (SIN ANTICIPO) - CON PUSH
 // ============================================
 window.notificarNuevaReserva = async function(booking) {
     try {
@@ -249,7 +315,21 @@ window.notificarNuevaReserva = async function(booking) {
 
         window.enviarWhatsApp(config.telefono, mensajeWhatsApp);
         
-        console.log('✅ Notificaciones de nueva reserva enviadas');
+        const mensajePush = 
+`🆕 NUEVA RESERVA - ${config.nombre}
+👤 Cliente: ${booking.cliente_nombre}
+💅 Servicio: ${booking.servicio}
+📅 Fecha: ${fechaConDia}
+⏰ Hora: ${horaFormateada}`;
+
+        await window.enviarNotificacionPush(
+            `📅 ${config.nombre} - Nuevo turno`,
+            mensajePush,
+            'calendar',
+            'default'
+        );
+        
+        console.log('✅ Notificaciones de nueva reserva enviadas (WhatsApp + Push)');
         return true;
     } catch (error) {
         console.error('Error en notificarNuevaReserva:', error);
@@ -258,7 +338,7 @@ window.notificarNuevaReserva = async function(booking) {
 };
 
 // ============================================
-// NOTIFICACIÓN DE RESERVA PENDIENTE (CON PUSH)
+// NOTIFICACIÓN DE RESERVA PENDIENTE (CON ANTICIPO) - CON DATOS DE PAGO A LA DUEÑA
 // ============================================
 window.notificarReservaPendiente = async function(booking) {
     try {
@@ -267,8 +347,83 @@ window.notificarReservaPendiente = async function(booking) {
             return false;
         }
 
-        console.log('📤 Procesando notificación de RESERVA PENDIENTE (CON PUSH)');
+        console.log('📤 Procesando notificación de RESERVA PENDIENTE (CON DATOS DE PAGO A LA DUEÑA)');
 
+        const configNegocio = await window.cargarConfiguracionNegocio();
+        
+        if (window.enviarMensajePago) {
+            console.log('💰 Enviando mensaje con datos de pago a la DUEÑA');
+            
+            let montoAnticipo = 0;
+            if (configNegocio.tipo_anticipo === 'fijo') {
+                montoAnticipo = configNegocio.valor_anticipo || 0;
+            } else {
+                let precioServicio = 0;
+                if (window.salonServicios) {
+                    const servicios = await window.salonServicios.getAll(true);
+                    const servicio = servicios.find(s => s.nombre === booking.servicio);
+                    if (servicio) {
+                        precioServicio = servicio.precio;
+                    }
+                }
+                const porcentaje = (configNegocio.valor_anticipo || 0) / 100;
+                montoAnticipo = Math.round(precioServicio * porcentaje);
+            }
+
+            const fechaConDia = window.formatFechaCompleta ? 
+                window.formatFechaCompleta(booking.fecha) : 
+                booking.fecha;
+            
+            const horaFormateada = window.formatTo12Hour ? 
+                window.formatTo12Hour(booking.hora_inicio) : 
+                booking.hora_inicio;
+
+            const profesional = booking.profesional_nombre || booking.trabajador_nombre || 'No asignada';
+
+            const mensajeFinal = 
+`💅 *${configNegocio.nombre || 'Mi Salón'} - Confirmación de Turno*
+
+✅ *SOLICITUD DE TURNO REGISTRADA*
+
+📅 *Fecha:* ${fechaConDia}
+⏰ *Hora:* ${horaFormateada}
+💅 *Servicio:* ${booking.servicio}
+👩‍🎨 *Profesional:* ${profesional}
+
+💰 *Para confirmar tu turno*, envía el *anticipo de ${montoAnticipo} CUP* por:
+
+🏦 *Transferencia bancária:* 
+   Tárjeta a transferir : ${configNegocio.cbu || 'XXXX XXXX XXXX XXXX'}
+   Alias: ${configNegocio.alias || 'alias.no.configurado'}
+
+📱 *Enviar comprobante a este WhatsApp:* 
+   +53 ${configNegocio.telefono || '00000000'}
+
+⏳ *Importante:* 
+El turno se cancelará automáticamente si no se confirma el pago dentro de las ${configNegocio.tiempo_vencimiento || 2} horas.
+
+¡Gracias por elegirnos! 💖`;
+
+            window.enviarWhatsApp(configNegocio.telefono, mensajeFinal);
+            
+            const mensajePush = 
+`🆕 RESERVA PENDIENTE - ${configNegocio.nombre}
+👤 Cliente: ${booking.cliente_nombre}
+💅 Servicio: ${booking.servicio}
+💰 Monto: $${montoAnticipo}`;
+
+            await window.enviarNotificacionPush(
+                `💰 ${configNegocio.nombre} - Pago pendiente`,
+                mensajePush,
+                'moneybag',
+                'high'
+            );
+            
+            console.log('✅ Dueña notificada con DATOS DE PAGO + Push');
+            return true;
+        }
+        
+        console.log('⚠️ Usando notificación simple (fallback)');
         const config = await getConfigNegocio();
         
         const fechaConDia = window.formatFechaCompleta ? 
@@ -292,14 +447,14 @@ window.notificarReservaPendiente = async function(booking) {
 👩‍🎨 *Profesional:* ${profesional}
 💰 *Estado:* Pendiente de pago
 
-✅ Ingresá al panel para confirmar el pago:
-https://tusalon.github.io/gordis-nails/admin-login.html`;
+✅ Ingresá al panel para confirmar el pago:`;
 
         window.enviarWhatsApp(config.telefono, mensajeWhatsApp);
         
         const mensajePush = 
 `🆕 RESERVA PENDIENTE - ${config.nombre}
 👤 Cliente: ${booking.cliente_nombre}
+💅 Servicio: ${booking.servicio}
 💰 Estado: Pendiente de pago`;
 
         await window.enviarNotificacionPush(
@@ -309,8 +464,9 @@ https://tusalon.github.io/gordis-nails/admin-login.html`;
             'high'
         );
         
-        console.log('✅ Notificación de reserva pendiente enviada (con push)');
+        console.log('✅ Notificación de reserva pendiente enviada (WhatsApp simple + Push)');
         return true;
+        
     } catch (error) {
         console.error('Error en notificarReservaPendiente:', error);
         return false;
@@ -318,7 +474,7 @@ https://tusalon.github.io/gordis-nails/admin-login.html`;
 };
 
 // ============================================
-// NOTIFICACIÓN DE CANCELACIÓN
+// NOTIFICACIÓN DE CANCELACIÓN (CORREGIDA)
 // ============================================
 window.notificarCancelacion = async function(booking) {
     try {
@@ -342,6 +498,7 @@ window.notificarCancelacion = async function(booking) {
         const profesional = booking.profesional_nombre || booking.trabajador_nombre || 'No asignada';
         const canceladoPor = booking.cancelado_por || 'admin';
         
+        // Mensaje para el dueño (si canceló el cliente)
         const mensajeDuenno = 
 `❌ *CANCELACIÓN - ${config.nombre}*
 
@@ -352,29 +509,36 @@ window.notificarCancelacion = async function(booking) {
 ⏰ *Hora:* ${horaFormateada}
 👩‍🎨 *Profesional:* ${profesional}
 
-${canceladoPor === 'cliente' ? 'El cliente canceló su turno.' : 'El administrador canceló la reserva.'}`;
+El cliente canceló su turno.`;
 
-        window.enviarWhatsApp(config.telefono, mensajeDuenno);
-
-        if (canceladoPor === 'admin') {
-            const mensajeCliente = 
+        // Mensaje para el cliente (si canceló el admin)
+        const mensajeCliente = 
 `❌ *CANCELACIÓN DE TURNO - ${config.nombre}*
 
 Hola *${booking.cliente_nombre}*, lamentamos informarte que tu turno ha sido cancelado.
 
 📅 *Fecha:* ${fechaConDia}
 ⏰ *Hora:* ${horaFormateada}
-💈 *Servicio:* ${booking.servicio}
+💅 *Servicio:* ${booking.servicio}
 👩‍🎨 *Profesional:* ${profesional}
 
 🔔 *Motivo:* Cancelación por administración
 
 📱 *¿Querés reprogramar?* Podés hacerlo desde la app`;
 
+        // Enviar según quién canceló
+        if (canceladoPor === 'cliente') {
+            // El cliente canceló: avisar al admin
+            window.enviarWhatsApp(config.telefono, mensajeDuenno);
+            console.log('📱 Admin notificado de cancelación por cliente');
+        } else {
+            // El admin canceló: avisar al cliente
             const telefonoCliente = booking.cliente_whatsapp.replace(/\D/g, '');
             window.enviarWhatsApp(telefonoCliente, mensajeCliente);
+            console.log('📱 Cliente notificado de cancelación por admin');
         }
 
+        // Notificación push (siempre, para ambos casos)
         const mensajePush = 
 `❌ CANCELACION - ${config.nombre}
 👤 Cliente: ${booking.cliente_nombre}
@@ -398,4 +562,4 @@ ${canceladoPor === 'cliente' ? '🔔 Cancelado por cliente' : '🔔 Cancelado po
     }
 };
 
-console.log('✅ whatsapp-helper.js - VERSIÓN DINÁMICA CARGADA');
+console.log('✅ whatsapp-helper.js - VERSIÓN GENÉRICA CARGADA (CON FORMATO EXACTO)');

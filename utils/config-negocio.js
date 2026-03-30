@@ -1,7 +1,7 @@
-// utils/config-bennetsalon.js - VERSIÓN MULTI-TENANT CORREGIDA
+// utils/config-negocio.js - VERSIÓN MULTI-TENANT CORREGIDA
 // CLIENTE: BennetSalón
 
-console.log('🏢 config-bennetsalon.js cargado');
+console.log('🏢 config-negocio.js cargado');
 
 // ============================================
 // 🔥 CONFIGURACIÓN POR CLIENTE - ¡LO ÚNICO QUE CAMBIA!
@@ -205,5 +205,5 @@ setTimeout(async () => {
     await window.cargarConfiguracionNegocio();
 }, 500);
 
-console.log('✅ config-bennetsalon.js listo para BennetSalón');
+console.log('✅ config-negocio.js listo para BennetSalón');
 console.log('🏷️  ID configurado:', NEGOCIO_ID_POR_DEFECTO);

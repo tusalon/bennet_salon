@@ -65,8 +65,10 @@ self.addEventListener('activate', event => {
 // ESTRATEGIA DE CACHÉ
 // ============================================
 self.addEventListener('fetch', event => {
+  // Ignorar peticiones que no sean HTTP
   if (!event.request.url.startsWith('http')) return;
   
+  // ⚡ NO INTERCEPTAR WHATSAPP (ESENCIAL PARA iOS)
   if (event.request.url.includes('wa.me') || 
       event.request.url.includes('api.whatsapp.com') ||
       event.request.url.includes('whatsapp.com')) {
@@ -74,6 +76,7 @@ self.addEventListener('fetch', event => {
     return;
   }
   
+  // Ignorar otras APIs externas
   if (event.request.url.includes('supabase.co')) return;
   if (event.request.url.includes('ntfy.sh')) return;
   if (event.request.url.includes('unsplash.com')) return;
@@ -83,9 +86,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Estrategia: Network First, fallback a cache
   event.respondWith(
     fetch(event.request)
       .then(networkResponse => {
+        // Si la respuesta es válida, guardar en cache
         if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
@@ -95,11 +100,13 @@ self.addEventListener('fetch', event => {
         return networkResponse;
       })
       .catch(() => {
+        // Si falla la red, buscar en cache
         return caches.match(event.request).then(cachedResponse => {
           if (cachedResponse) {
             console.log('📦 Sirviendo desde cache:', event.request.url);
             return cachedResponse;
           }
+          // Si no hay cache y es imagen, devolver icon por defecto
           if (event.request.url.match(/\.(jpg|jpeg|png|gif|svg|webp)$/)) {
             return caches.match('/bennet_salon/icons/icon-192x192.png');
           }
