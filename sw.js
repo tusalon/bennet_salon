@@ -1,6 +1,6 @@
 // sw.js - Service Worker para BennetSalón
 
-const CACHE_NAME = 'bennet_salon-v49';
+const CACHE_NAME = 'bennet_salon-v50';
 const urlsToCache = [
   '/bennet_salon/',
   '/bennet_salon/index.html',
